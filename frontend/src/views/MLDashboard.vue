@@ -317,11 +317,6 @@ async function loadData() {
     if (metricsRes.status === 'fulfilled') metrics.value = metricsRes.value.data
     if (fairnessRes.status === 'fulfilled') fairness.value = fairnessRes.value.data
     if (calibrationRes.status === 'fulfilled') calibration.value = calibrationRes.value.data
-
-    if (calibration.value) {
-      const { summary } = await api.post('/chat', { query: "Give a summary of the calibration results. this is the calibration data: " + JSON.stringify(calibration.value), messages: [] });
-      calibration.value.summary = summary || ""
-    }
   } finally {
     loading.value = false
   }

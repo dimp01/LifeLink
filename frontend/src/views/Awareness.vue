@@ -495,6 +495,7 @@ onMounted(loadContent)
   margin-bottom: 16px;
   overflow-y: hidden;
   max-height: 60px;
+  min-height: 60px;
 }
 
 .challenge-actions {
@@ -710,6 +711,10 @@ onMounted(loadContent)
 
   .challenges-grid {
     grid-template-columns: 1fr;
+  }
+
+  .challenge-desc {
+    min-height: auto;
   }
 
   .share-buttons {

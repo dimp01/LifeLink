@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'https://ominous-rotary-phone-rj5xp5q76rwfwx6j-8000.app.github.dev/',
+  baseURL: 'https://automatic-computing-machine-4xprwp5qrppf5rpr-8000.app.github.dev/',
   timeout: 30000,
   withCredentials: true, // Include cookies in requests
 })
@@ -107,5 +107,8 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+// Helper methods on the shared api instance inherit all interceptor behavior.
+api.matchDonor = (donorId, options = {}) => api.post('/ml/match', { donor_id: donorId, ...options })
 
 export default api

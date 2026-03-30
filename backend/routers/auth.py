@@ -7,7 +7,7 @@ from sqlalchemy import select
 from datetime import timedelta
 
 from database import get_db
-from models import User, UserRole, AuditLog
+from models import User, UserRole, AuditLog, Recipient, Hospital
 from auth import hash_password, verify_password, create_access_token, get_current_user
 from config import settings
 from security import generate_csrf_token, TokenManager
@@ -30,6 +30,11 @@ class LoginResponse(BaseModel):
     full_name: str
     user_id: str
     email: str
+    hospital_registered: bool | None = None
+    hospital_verified: bool | None = None
+    hospital_profile_complete: bool | None = None
+    recipient_verified: bool | None = None
+    recipient_registered: bool | None = None
 
 
 class UserOut(BaseModel):
@@ -65,6 +70,12 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
     )
     db.add(user)
     await db.flush()
+
+    # Create role profile placeholders so missing values can be completed later.
+    if payload.role == UserRole.recipient:
+        db.add(Recipient(user_id=user.id, status="pending"))
+    elif payload.role == UserRole.hospital:
+        db.add(Hospital(user_id=user.id, is_verified=False))
 
     # Audit log
     db.add(AuditLog(user_id=user.id, action="USER_REGISTERED", details={"email": payload.email}))
@@ -103,13 +114,47 @@ async def login(
         max_age=int(settings.REFRESH_TOKEN_EXPIRE_DAYS) * 24 * 60 * 60,
     )
 
+    hospital_registered = None
+    hospital_verified = None
+    hospital_profile_complete = None
+    recipient_verified = None
+    recipient_registered = None
+
+    role_value = auth_data["role"] if isinstance(auth_data["role"], str) else auth_data["role"].value
+    if role_value == UserRole.hospital.value:
+        hospital_result = await db.execute(
+            select(Hospital).where(Hospital.user_id == uuid.UUID(auth_data["user_id"]))
+        )
+        hospital = hospital_result.scalar_one_or_none()
+        hospital_registered = hospital is not None
+        hospital_verified = bool(hospital.is_verified) if hospital else False
+        hospital_profile_complete = bool(
+            hospital
+            and hospital.hospital_name
+            and hospital.registration_number
+            and hospital.city
+            and hospital.state
+        )
+    elif role_value == UserRole.recipient.value:
+        recipient_result = await db.execute(
+            select(Recipient).where(Recipient.user_id == uuid.UUID(auth_data["user_id"]))
+        )
+        recipient = recipient_result.scalar_one_or_none()
+        recipient_registered = recipient is not None
+        recipient_verified = bool(recipient.is_verified) if recipient else False
+
     return LoginResponse(
         access_token=auth_data["access_token"],
         token_type="bearer",
-        role=auth_data["role"] if isinstance(auth_data["role"], str) else auth_data["role"].value,
+        role=role_value,
         full_name=auth_data["full_name"] or "",
         user_id=auth_data["user_id"],
         email=auth_data["email"],
+        hospital_registered=hospital_registered,
+        hospital_verified=hospital_verified,
+        hospital_profile_complete=hospital_profile_complete,
+        recipient_verified=recipient_verified,
+        recipient_registered=recipient_registered,
     )
 
 

@@ -62,9 +62,6 @@ class AuthService:
             await self._audit_log(None, "LOGIN_FAILED", {"email": email, "ip": ip_address})
             raise ValueError("Invalid credentials")
 
-        if not user.is_active:
-            raise ValueError("Account disabled")
-
         # Create tokens
         access_token = TokenManager.create_access_token(
             data={"sub": str(user.id), "role": user.role.value if hasattr(user.role, 'value') else str(user.role)},

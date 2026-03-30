@@ -118,7 +118,7 @@ def train_demand_model(df):
     joblib.dump(features, MODEL_DIR / "feature_names.pkl")
 
     metrics = {
-        "model": "XGBoost Demand Classifier",
+        "model": "LifeLink AI",
         "accuracy": float(acc),
         "mae": mae,
         "rmse": rmse,
@@ -273,7 +273,7 @@ def run_full_pipeline():
     df, encoders = load_and_preprocess()
 
     print(f"Dataset shape: {df.shape}")
-    print("Training demand prediction model...")
+    print("Training LifeLink AI demand prediction model...")
     model, metrics, features = train_demand_model(df)
 
     print("Computing ODII...")
@@ -345,9 +345,9 @@ def compute_fairness(model, df, features):
     fairness = {}
 
     # 1. By Religion
-    if "Religion" in df.columns:
+    if "religion" in df.columns:
         religion_stats = []
-        for grp, gdf in df.groupby("Religion"):
+        for grp, gdf in df.groupby("religion"):
             if len(gdf) < 5:
                 continue
             tp = int(((gdf["_pred"] == 1) & (gdf["_actual"] == 1)).sum())
@@ -369,9 +369,9 @@ def compute_fairness(model, df, features):
         fairness["by_religion"] = sorted(religion_stats, key=lambda x: x["count"], reverse=True)
 
     # 2. By Age group
-    if "Age" in df.columns:
+    if "age" in df.columns:
         age_stats = []
-        for grp, gdf in df.groupby("Age"):
+        for grp, gdf in df.groupby("age"):
             if len(gdf) < 5:
                 continue
             age_stats.append({
@@ -384,9 +384,9 @@ def compute_fairness(model, df, features):
         fairness["by_age"] = sorted(age_stats, key=lambda x: x["count"], reverse=True)
 
     # 3. By Region
-    if "region" in df.columns:
+    if "city" in df.columns:
         region_stats = []
-        for grp, gdf in df.groupby("region"):
+        for grp, gdf in df.groupby("city"):
             if len(gdf) < 5:
                 continue
             region_stats.append({

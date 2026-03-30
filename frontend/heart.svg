@@ -1,0 +1,22 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Heart Shape -->
+  <path d="M100 170 
+           C20 110, 20 50, 60 40 
+           C85 35, 100 55, 100 55 
+           C100 55, 115 35, 140 40 
+           C180 50, 180 110, 100 170 Z"
+        fill="#e63946"/>
+
+  <!-- Pulse Line -->
+  <polyline points="40,100 70,100 80,80 95,120 110,90 120,100 160,100"
+            fill="none"
+            stroke="white"
+            stroke-width="4"
+            stroke-linejoin="round"
+            stroke-linecap="round"/>
+
+  <!-- Text -->
+  <!-- <text x="100" y="190" text-anchor="middle" font-size="18" fill="#333" font-family="Arial, sans-serif">
+    LifeLink
+  </text> -->
+</svg>

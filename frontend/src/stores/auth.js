@@ -128,6 +128,11 @@ export const useAuthStore = defineStore('auth', () => {
         full_name: res.data.full_name,
         user_id: res.data.user_id,
         email: email,
+        hospital_registered: res.data.hospital_registered,
+        hospital_verified: res.data.hospital_verified,
+        hospital_profile_complete: res.data.hospital_profile_complete,
+        recipient_verified: res.data.recipient_verified,
+        recipient_registered: res.data.recipient_registered,
       }
       sessionStorage.setItem('user', JSON.stringify(user.value))
 

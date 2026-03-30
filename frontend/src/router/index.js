@@ -39,6 +39,7 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin', title: 'Admin Dashboard – LifeLink AI' },
   },
   { path: '/awareness', name: 'Awareness', component: () => import('../views/Awareness.vue'), meta: { title: 'Awareness – LifeLink AI' } },
+  { path: '/campaigns', name: 'Campaigns', component: () => import('../views/Campaigns.vue'), meta: { title: 'Campaigns – LifeLink AI' } },
   { path: '/community', name: 'DonorCommunity', component: () => import('../views/DonorCommunity.vue'), meta: { title: 'Donor Community – LifeLink AI' } },
   { path: '/settings', name: 'UserSettings', component: () => import('../views/UserSettings.vue'), meta: { requiresAuth: true, title: 'Settings – LifeLink AI' } },
   { path: '/compliance', name: 'Compliance', component: () => import('../views/Compliance.vue'), meta: { requiresAuth: true, title: 'Legal & Compliance – LifeLink AI' } },

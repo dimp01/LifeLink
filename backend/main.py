@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from database import engine, Base
-from routers import auth, donor, admin, ml, awareness, recipient, file_upload, chat
+from routers import auth, donor, admin, ml, awareness, recipient, file_upload, chat, campaigns, community, hospital, tracking, matching
 from middleware import (
     RateLimitMiddleware,
     CSRFMiddleware,
@@ -69,10 +69,15 @@ app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(donor.router, prefix="/donor", tags=["Donor"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(ml.router, prefix="/ml", tags=["ML"])
+app.include_router(matching.router, prefix="/ml", tags=["ML Matching"])
 app.include_router(awareness.router, prefix="/awareness", tags=["Awareness"])
 app.include_router(recipient.router, tags=["Recipient"])
 app.include_router(file_upload.router, tags=["File Upload"])
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
+app.include_router(campaigns.router, tags=["Campaigns"])
+app.include_router(community.router, tags=["Community"])
+app.include_router(hospital.router, tags=["Hospital"])
+app.include_router(tracking.router, tags=["Tracking"])
 
 
 @app.get("/", tags=["Root"])

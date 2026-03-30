@@ -20,6 +20,11 @@
         </div>
       </div>
 
+      <div v-if="donor?.match_status" class="alert alert-success" style="margin-bottom: 16px;">
+        Match update: status is <strong>{{ donor.match_status }}</strong>
+        <span v-if="donor.matched_recipient_id"> for recipient ID {{ donor.matched_recipient_id }}</span>.
+      </div>
+
       <!-- No profile yet -->
       <div v-if="!donor && !loading && !showForm" class="empty-state">
         <div class="empty-icon">🫀</div>
@@ -79,6 +84,47 @@
         </div>
       </div>
 
+      <!-- Matched Recipient Card - Show when donation is matched -->
+      <div v-if="donor && !showForm && donor.match_status === 'matched' && donor.matched_recipient_id" style="margin-top: 24px;">
+        <div class="card" style="background-color: #f0fdf4; border-left: 4px solid #22c55e;">
+          <div class="card-header" style="color: #15803d; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 24px;">✅</span>
+            <div>
+              <div>Your Donation Has Been Matched!</div>
+              <div style="font-size: 12px; color: #6b7280; font-weight: normal; margin-top: 4px;">You will be contacted by the hospital for next steps.</div>
+            </div>
+          </div>
+          
+          <div style="padding: 16px; border-top: 1px solid #d1d5db;">
+            <div style="font-weight: 600; margin-bottom: 12px; color: #1f2937;">Recipient Information:</div>
+            <div class="profile-row">
+              <span class="profile-label">Name</span>
+              <span class="profile-value">{{ donor.matched_recipient_name || 'N/A' }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Age</span>
+              <span class="profile-value">{{ donor.matched_recipient_age || 'N/A' }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Blood Group</span>
+              <span class="profile-value">{{ donor.matched_recipient_blood_group || 'N/A' }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Organs Needed</span>
+              <div class="organ-tags">
+                <span class="badge badge-danger" v-for="organ in donor.matched_recipient_organs_needed" :key="organ">
+                  {{ organ }}
+                </span>
+              </div>
+            </div>
+            <div class="profile-row">
+              <span class="profile-label">Matched Organ</span>
+              <span class="badge badge-success">{{ donor.matched_organ_type }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Registration / Edit Form -->
       <div v-if="showForm" class="card form-card">
         <div class="card-header">{{ donor ? 'Update Donor Profile' : 'Quick Pledge Registration' }}</div>
@@ -110,6 +156,29 @@
               <label>Location (City/State)</label>
               <input v-model="form.location" type="text" required />
             </div>
+            <div class="form-group">
+              <label>State</label>
+              <select v-model="form.state">
+                <option value="">Select State</option>
+                <option v-for="s in hospitalStates" :key="`state-${s}`" :value="s">{{ s }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <select v-model="form.city">
+                <option value="">Select City</option>
+                <option v-for="c in citiesForSelectedState" :key="`city-${c}`" :value="c">{{ c }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Preferred Hospital (Registered on LifeLink)</label>
+              <select v-model="form.hospital_id">
+                <option value="">Select Hospital</option>
+                <option v-for="h in hospitalOptions" :key="h.id" :value="h.id">
+                  {{ h.hospital_name }} - {{ h.city }}, {{ h.state }}
+                </option>
+              </select>
+            </div>
           </div>
 
           <div class="form-group" v-if="donor || formStep === 1">
@@ -130,6 +199,32 @@
           <div class="form-group" v-if="donor || formStep === 2">
             <label>Emergency Contact</label>
             <input v-model="form.emergency_contact" type="text" placeholder="+91 XXXXXXXXXX" />
+          </div>
+
+          <div class="grid-2" v-if="donor || formStep === 2">
+            <div class="form-group">
+              <label>Donation Mode</label>
+              <select v-model="form.donation_mode">
+                <option value="general">General (available for matching)</option>
+                <option value="after_death">Donate after death</option>
+                <option value="relative">Donate to a relative</option>
+              </select>
+            </div>
+            <div class="form-group" v-if="form.donation_mode === 'relative'">
+              <label>Relative Recipient Email</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input v-model="form.relative_recipient_email" @input="onRelativeEmailInput" type="email" placeholder="Enter recipient email" />
+                <button type="button" class="btn btn-outline btn-sm" @click="verifyRecipientEmail" :disabled="verifyingRecipientEmail">
+                  {{ verifyingRecipientEmail ? 'Verifying...' : 'Verify' }}
+                </button>
+              </div>
+              <p v-if="recipientVerified" style="color:#166534; font-size:12px; margin-top:6px;">
+                Verified recipient: {{ verifiedRecipientName }}
+              </p>
+              <p v-if="recipientVerificationError" style="color:#b91c1c; font-size:12px; margin-top:6px;">
+                {{ recipientVerificationError }}
+              </p>
+            </div>
           </div>
 
           <div class="form-group consent-group" v-if="donor || formStep === 1">
@@ -174,6 +269,14 @@ const formError = ref('')
 const loadError = ref('')
 const formStep = ref(1)
 const completeness = ref(null)
+const hospitalOptions = ref([])
+const hospitalStates = ref([])
+const citiesByState = ref({})
+const verifyingRecipientEmail = ref(false)
+const recipientVerified = ref(false)
+const verifiedRecipientName = ref('')
+const verifiedRecipientEmail = ref('')
+const recipientVerificationError = ref('')
 
 const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const organList = ['Kidney', 'Liver', 'Heart', 'Lungs', 'Eyes', 'Cornea', 'Pancreas', 'Intestine', 'Skin', 'Bone Marrow']
@@ -183,10 +286,20 @@ const form = ref({
   age: '',
   blood_group: 'O+',
   location: '',
+  city: '',
+  state: '',
+  hospital_id: '',
   organs_selected: [],
+  donation_mode: 'general',
+  relative_recipient_email: '',
   medical_history: '',
   emergency_contact: '',
   consent_agreed: false,
+})
+
+const citiesForSelectedState = computed(() => {
+  if (!form.value.state) return []
+  return citiesByState.value[form.value.state] || []
 })
 
 const statusIcon = computed(() => ({ pending: '⏳', approved: '✅', rejected: '❌' }[donor.value?.status] || '❓'))
@@ -201,9 +314,27 @@ const profileRows = computed(() => donor.value ? [
   { label: 'Age', value: donor.value.age + ' years' },
   { label: 'Blood Group', value: donor.value.blood_group },
   { label: 'Location', value: donor.value.location },
+  { label: 'State', value: donor.value.state || 'Not provided' },
+  { label: 'City', value: donor.value.city || 'Not provided' },
+  { label: 'Donation Mode', value: donor.value.donation_mode || 'general' },
+  { label: 'Preferred Hospital', value: donor.value.hospital_id || 'Not selected' },
+  { label: 'Relative Recipient Email', value: donor.value.relative_recipient_email || 'N/A' },
   { label: 'Emergency Contact', value: donor.value.emergency_contact || 'Not provided' },
   { label: 'Registered On', value: new Date(donor.value.created_at).toLocaleDateString() },
 ] : [])
+
+async function loadHospitalDirectory() {
+  try {
+    const res = await api.get('/hospital/directory')
+    hospitalOptions.value = res.data?.hospitals || []
+    hospitalStates.value = res.data?.states || []
+    citiesByState.value = res.data?.cities_by_state || {}
+  } catch (e) {
+    hospitalOptions.value = []
+    hospitalStates.value = []
+    citiesByState.value = {}
+  }
+}
 
 async function loadDonor() {
   try {
@@ -215,6 +346,38 @@ async function loadDonor() {
     if (e.response?.status !== 404) {
       loadError.value = 'Unable to load donor profile right now.'
     }
+  }
+}
+
+function onRelativeEmailInput() {
+  recipientVerified.value = false
+  verifiedRecipientName.value = ''
+  verifiedRecipientEmail.value = ''
+  recipientVerificationError.value = ''
+}
+
+async function verifyRecipientEmail() {
+  recipientVerificationError.value = ''
+  recipientVerified.value = false
+
+  if (!form.value.relative_recipient_email?.trim()) {
+    recipientVerificationError.value = 'Please enter recipient email first.'
+    return
+  }
+
+  try {
+    verifyingRecipientEmail.value = true
+    const res = await api.post('/donor/verify-email', {
+      recipient_email: form.value.relative_recipient_email.trim().toLowerCase(),
+    })
+    recipientVerified.value = true
+    verifiedRecipientName.value = res.data?.recipient_name || 'Recipient'
+    verifiedRecipientEmail.value = res.data?.recipient_email || form.value.relative_recipient_email.trim().toLowerCase()
+    form.value.relative_recipient_email = verifiedRecipientEmail.value
+  } catch (e) {
+    recipientVerificationError.value = e.response?.data?.detail || 'Unable to verify recipient email.'
+  } finally {
+    verifyingRecipientEmail.value = false
   }
 }
 
@@ -253,11 +416,20 @@ function startEdit() {
     age: donor.value.age,
     blood_group: donor.value.blood_group,
     location: donor.value.location,
+    city: donor.value.city || '',
+    state: donor.value.state || '',
+    hospital_id: donor.value.hospital_id || '',
     organs_selected: [...donor.value.organs_selected],
+    donation_mode: donor.value.donation_mode || 'general',
+    relative_recipient_email: donor.value.relative_recipient_email || '',
     medical_history: donor.value.medical_history || '',
     emergency_contact: donor.value.emergency_contact || '',
     consent_agreed: donor.value.consent_agreed || true,
   }
+  recipientVerified.value = false
+  verifiedRecipientName.value = ''
+  verifiedRecipientEmail.value = ''
+  recipientVerificationError.value = ''
   formStep.value = 2
   showForm.value = true
 }
@@ -266,6 +438,7 @@ function cancelForm() {
   showForm.value = false
   formStep.value = 1
   formError.value = ''
+  recipientVerificationError.value = ''
 }
 
 function moveToDetails() {
@@ -280,6 +453,18 @@ function moveToDetails() {
   }
   if (!form.value.location?.trim()) {
     formError.value = 'Please enter your location.'
+    return
+  }
+  if (form.value.donation_mode === 'after_death' && !form.value.hospital_id) {
+    formError.value = 'Please select a registered hospital for after-death donation.'
+    return
+  }
+  if (form.value.donation_mode === 'relative' && !form.value.relative_recipient_email?.trim()) {
+    formError.value = 'Please enter recipient email for relative donation.'
+    return
+  }
+  if (form.value.donation_mode === 'relative' && !recipientVerified.value) {
+    formError.value = 'Please verify recipient email before continuing.'
     return
   }
   if (form.value.organs_selected.length === 0) {
@@ -301,22 +486,44 @@ async function submitForm() {
   submitting.value = true
   formError.value = ''
   try {
+    const normalizedRelativeEmail = form.value.relative_recipient_email?.trim()?.toLowerCase() || null
+    const shouldSubmitRelativeRequest = form.value.donation_mode === 'relative' && recipientVerified.value
+
     if (donor.value) {
       await api.patch('/donor/me', {
         full_name: form.value.full_name,
         age: form.value.age,
         blood_group: form.value.blood_group,
         location: form.value.location,
+        city: form.value.city || null,
+        state: form.value.state || null,
+        hospital_id: form.value.hospital_id || null,
         organs_selected: form.value.organs_selected,
+        donation_mode: form.value.donation_mode,
+        relative_recipient_email: normalizedRelativeEmail,
         medical_history: form.value.medical_history,
         emergency_contact: form.value.emergency_contact,
       })
     } else {
-      await api.post('/donor', form.value)
+      await api.post('/donor', {
+        ...form.value,
+        city: form.value.city || null,
+        state: form.value.state || null,
+        hospital_id: form.value.hospital_id || null,
+        relative_recipient_email: normalizedRelativeEmail,
+      })
     }
+
+    if (shouldSubmitRelativeRequest && normalizedRelativeEmail) {
+      await api.post('/donor/submit-relative-request', {
+        recipient_email: normalizedRelativeEmail,
+      })
+    }
+
     await loadDashboardData()
     showForm.value = false
     formStep.value = 1
+    recipientVerificationError.value = ''
   } catch (e) {
     formError.value = e.response?.data?.detail || 'Failed to save profile.'
   } finally {
@@ -338,7 +545,9 @@ function toReadableField(field) {
   return labels[field] || field
 }
 
-onMounted(loadDashboardData)
+onMounted(async () => {
+  await Promise.all([loadHospitalDirectory(), loadDashboardData()])
+})
 </script>
 
 <style scoped>

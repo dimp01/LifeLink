@@ -145,7 +145,8 @@ async function send() {
       .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }))
 
     const payload = { query: text, history }
-    if (auth.user?.id) payload.user_id = auth.user.id
+    if (auth.user?.user_id) payload.user_id = auth.user.user_id
+    console.log(payload)
 
     const { data } = await api.post('/chat', payload)
 

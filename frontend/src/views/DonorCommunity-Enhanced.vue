@@ -103,7 +103,7 @@
                     {{ post.user_liked ? "❤️" : "🤍" }} {{ post.like_count }}
                   </button>
                   <button class="btn-action" @click="sharePost(post)">📤 Share</button>
-                  <button v-if="isLoggedIn && post.can_delete" class="btn-action" @click="deletePost(post.id)">
+                  <button v-if="post.author_id === userId && isLoggedIn" class="btn-action" @click="deletePost(post.id)">
                     🗑️ Delete
                   </button>
                 </div>

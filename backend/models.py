@@ -52,7 +52,14 @@ class Donor(Base):
     age = Column(Integer, nullable=False)
     blood_group = Column(String, nullable=False)
     location = Column(String, nullable=False)
+    city = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id"), nullable=True)
     organs_selected = Column(JSON, default=[])
+    donation_mode = Column(String, default="general", nullable=False)  # general, after_death, relative
+    relative_recipient_email = Column(String, nullable=True)  # Email of relative recipient for private donation
+    is_deceased = Column(Boolean, default=False)
+    deceased_at = Column(DateTime, nullable=True)
     medical_history = Column(Text, nullable=True)
     emergency_contact = Column(String, nullable=True)
     consent_agreed = Column(Boolean, default=False)
@@ -61,6 +68,7 @@ class Donor(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="donor_profile")
+    hospital = relationship("Hospital")
 
 
 class MLPrediction(Base):
@@ -215,3 +223,170 @@ class AuditLog(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User", back_populates="audit_logs")
+
+
+class Hospital(Base):
+    """Hospital registration and profiles"""
+    __tablename__ = "hospitals"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    hospital_name = Column("name", String, nullable=True)
+    registration_number = Column(String, unique=True, nullable=True)
+    city = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    phone = Column("contact_phone", String, nullable=True)
+    email = Column("contact_email", String, nullable=True)
+    website = Column(String, nullable=True)
+    bed_capacity = Column(Integer, nullable=True)
+    specializations = Column(JSON, default=None, nullable=True)  # List of organ specialties
+    is_verified = Column("is_active", Boolean, default=False, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class Recipient(Base):
+    """Recipient profiles (similar to donor but for recipients)"""
+    __tablename__ = "recipients"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    full_name = Column(String, nullable=True)
+    age = Column(Integer, nullable=True)
+    blood_group = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    address = Column(Text, nullable=True)
+    medical_condition = Column(String, nullable=True)
+    organ_needed = Column(JSON, default=None, nullable=True)  # List of organs needed
+    urgency = Column(String, default="standard", nullable=True)  # urgent, high, standard
+    hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id"), nullable=True)
+    hospital_contact_name = Column(String, nullable=True)
+    
+    # Verification tracking
+    is_verified = Column(Boolean, default=False)
+    status = Column(String, default="pending")  # pending, verified, approved, matched, completed, rejected
+    
+    # Documents and metadata
+    documents = Column(JSON, default=None, nullable=True)  # List of document metadata
+    verification_notes = Column(Text, nullable=True)  # Notes from recipient during submission
+    reviewer_notes = Column(Text, nullable=True)  # Notes from admin reviewer
+    
+    # Timeline tracking
+    submitted_at = Column(DateTime, nullable=True)  # When verification was submitted
+    verified_at = Column(DateTime, nullable=True)  # When admin verified
+    verified_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # Admin user_id
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    hospital = relationship("Hospital")
+    verifier = relationship("User", foreign_keys=[verified_by])
+
+
+class Campaign(Base):
+    """Awareness campaigns"""
+    __tablename__ = "campaigns"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    content = Column(Text, nullable=True)
+    icon = Column(String, default="🎯")  # Emoji or icon identifier
+    campaign_type = Column(String, default="challenge")  # challenge, drive, event, other
+    start_date = Column(DateTime, nullable=True)
+    end_date = Column(DateTime, nullable=True)
+    target_participants = Column(Integer, default=100)
+    is_active = Column(Boolean, default=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    creator = relationship("User")
+    participants = relationship("CampaignParticipant", back_populates="campaign", cascade="all, delete-orphan")
+
+
+class CampaignParticipant(Base):
+    """Tracks users participating in campaigns"""
+    __tablename__ = "campaign_participants"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    joined_at = Column(DateTime, default=datetime.utcnow)
+    engagement_score = Column(Float, default=0.0)  # For tracking engagement
+
+    campaign = relationship("Campaign", back_populates="participants")
+    user = relationship("User")
+    __table_args__ = ((__import__('sqlalchemy').UniqueConstraint('campaign_id', 'user_id', name='_campaign_user_uc'),))
+
+
+class CommunityPost(Base):
+    """Community/forum posts"""
+    __tablename__ = "community_posts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    post_type = Column(String, default="story")  # story, discussion, question, etc.
+    like_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    author = relationship("User")
+    likes = relationship("PostLike", back_populates="post", cascade="all, delete-orphan")
+
+
+class PostLike(Base):
+    """Likes on community posts"""
+    __tablename__ = "post_likes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    post_id = Column(UUID(as_uuid=True), ForeignKey("community_posts.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    post = relationship("CommunityPost", back_populates="likes")
+    user = relationship("User")
+    __table_args__ = ((__import__('sqlalchemy').UniqueConstraint('post_id', 'user_id', name='_post_user_like_uc'),))
+
+
+class OrganRequest(Base):
+    """Track organ requests/matches"""
+    __tablename__ = "organ_requests"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    donor_id = Column(UUID(as_uuid=True), ForeignKey("donors.id"), nullable=True)
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("recipients.id"), nullable=False)
+    organ_type = Column(String, nullable=False)
+    status = Column(String, default="pending")  # pending, matched, accepted, completed, rejected
+    match_compatibility = Column(Float, nullable=True)  # 0.0 to 1.0
+    request_date = Column(DateTime, default=datetime.utcnow)
+    matched_date = Column(DateTime, nullable=True)
+    completed_date = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    donor = relationship("Donor")
+    recipient = relationship("Recipient")
+
+
+class MatchRequest(Base):
+    """Track match requests between donor and recipient (for relative donation mode)"""
+    __tablename__ = "match_requests"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    donor_id = Column(UUID(as_uuid=True), ForeignKey("donors.id"), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), ForeignKey("recipients.id"), nullable=False)
+    status = Column(String, default="pending")  # pending, accepted, rejected
+    message = Column(Text, nullable=True)  # Optional message from donor
+    requested_at = Column(DateTime, default=datetime.utcnow)
+    responded_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    donor = relationship("Donor")
+    recipient = relationship("Recipient")

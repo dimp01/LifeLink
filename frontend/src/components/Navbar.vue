@@ -13,6 +13,7 @@
       <div class="nav-links">
         <router-link v-if="!auth.isLoggedIn" to="/" class="nav-link">Home</router-link>
         <router-link to="/awareness" class="nav-link">Awareness</router-link>
+        <router-link to="/campaigns" class="nav-link">Campaigns</router-link>
         <router-link to="/community" class="nav-link">Community</router-link>
         <template v-if="!auth.isLoggedIn">
           <router-link to="/chat" class="nav-link">💬 Chat</router-link>
@@ -34,7 +35,7 @@
           <router-link to="/register" class="btn btn-primary btn-sm">Get started</router-link>
         </template>
       </div>
-      <div class="user-pill hamburger" style="width:inherit; padding: inherit; right: 4.6rem; position: absolute;" v-if="auth.isLoggedIn">
+      <div class="user-pill hamburger" style="width:inherit; max-width: 40%; padding: inherit; right: 4.6rem; position: absolute;" v-if="auth.isLoggedIn">
         <span class="user-avatar">{{ auth.user.full_name?.[0] || auth.role?.[0]?.toUpperCase() || '?' }}</span>
         <span class="user-role"><router-link to="/profile" style="text-decoration: none; color: inherit;">{{ auth.user?.full_name || auth.role }}</router-link></span>
       </div>
@@ -49,8 +50,7 @@
     <Transition name="drawer">
       <div class="mobile-menu" v-if="menuOpen">
         <router-link v-if="!auth.isLoggedIn" to="/" class="mob-link" @click="menuOpen = false">🏠 Home</router-link>
-        <router-link to="/awareness" class="mob-link" @click="menuOpen = false">Awareness</router-link>
-        <router-link to="/community" class="mob-link" @click="menuOpen = false">Community</router-link>
+        <router-link to="/awareness" class="mob-link" @click="menuOpen = false">Awareness</router-link>          <router-link to="/campaigns" class="mob-link" @click="menuOpen = false">Campaigns</router-link>        <router-link to="/community" class="mob-link" @click="menuOpen = false">Community</router-link>
         <template v-if="!auth.isLoggedIn">
           <router-link to="/chat" class="mob-link" @click="menuOpen = false">💬 Chat</router-link>
         </template>

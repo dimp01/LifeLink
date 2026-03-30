@@ -107,8 +107,16 @@ async function handleLogin() {
   loading.value = true
   error.value = ''
   try {
-    await auth.login(email.value, password.value)
-    router.push(auth.dashboardRoute)
+    const loginData = await auth.login(email.value, password.value)
+    const needsOnboarding =
+      loginData?.role === 'hospital' &&
+      (loginData?.hospital_verified === false || loginData?.hospital_profile_complete === false)
+
+    if (needsOnboarding) {
+      router.push('/hospital?onboarding=1')
+    } else {
+      router.push(auth.dashboardRoute)
+    }
   } catch (e) {
     error.value =
       e.response?.data?.detail || 'Invalid credentials. Please try again.'
